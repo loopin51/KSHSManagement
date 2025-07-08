@@ -8,7 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { eachDayOfInterval, format, isSameDay } from 'date-fns';
+import { eachDayOfInterval, format, isSameDay, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 interface AvailabilityViewProps {
@@ -24,7 +24,10 @@ function AvailabilityCalendar({ rentals, equipment }: { rentals: Rental[], equip
         rentals.forEach(rental => {
             if (rental.status === 'approved') {
                 const equipmentDetails = equipment.find(e => e.id === rental.equipment_id);
-                const interval = eachDayOfInterval({ start: rental.start_date, end: rental.end_date });
+                const interval = eachDayOfInterval({ 
+                    start: typeof rental.start_date === 'string' ? parseISO(rental.start_date) : rental.start_date,
+                    end: typeof rental.end_date === 'string' ? parseISO(rental.end_date) : rental.end_date
+                });
                 interval.forEach(day => {
                     const dateString = format(day, 'yyyy-MM-dd');
                     if (!grouped[dateString]) {
@@ -127,8 +130,11 @@ function AvailabilityTimeline({ rentals, equipment }: AvailabilityViewProps) {
                         const itemIndex = equipment.findIndex(e => e.id === rental.equipment_id);
                         if (itemIndex === -1) return null;
 
-                        const rentalStart = rental.start_date > startDate ? rental.start_date : startDate;
-                        const rentalEnd = rental.end_date < endDate ? rental.end_date : endDate;
+                        const parsedStartDate = typeof rental.start_date === 'string' ? parseISO(rental.start_date) : rental.start_date;
+                        const parsedEndDate = typeof rental.end_date === 'string' ? parseISO(rental.end_date) : rental.end_date;
+
+                        const rentalStart = parsedStartDate > startDate ? parsedStartDate : startDate;
+                        const rentalEnd = parsedEndDate < endDate ? parsedEndDate : endDate;
 
                         const offset = getDayOffset(rentalStart);
                         const duration = getDaysBetween(rentalStart, rentalEnd);
