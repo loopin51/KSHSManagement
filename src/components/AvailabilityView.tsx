@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Rental, Equipment } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { eachDayOfInterval, format, isSameDay, parseISO, startOfDay, endOfDay, isWithinInterval, getHours, getMinutes } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface AvailabilityViewProps {
   rentals: Rental[];
@@ -17,7 +18,7 @@ function DailyTimeline({ selectedDate, rentals, equipment }: { selectedDate: Dat
     const hours = Array.from({ length: 24 }, (_, i) => i); // 0-23
     
     const relevantRentals = useMemo(() => rentals.filter(rental => {
-        if (rental.status !== 'approved') return false;
+        if (rental.status !== 'approved' && rental.status !== 'pending') return false;
         const interval = { start: rental.start_date, end: rental.end_date };
         return isWithinInterval(selectedDate, interval) || 
                isSameDay(rental.start_date, selectedDate) || 
@@ -70,29 +71,45 @@ function DailyTimeline({ selectedDate, rentals, equipment }: { selectedDate: Dat
 
                             {equipment.map(item => {
                                 const itemRentals = relevantRentals.filter(r => r.equipment_id === item.id);
-                                if (itemRentals.length === 0) return null;
-
                                 return (
                                     <React.Fragment key={item.id}>
                                         <div className="text-sm font-medium pr-2 text-right truncate">{item.name}</div>
                                         <div className="relative h-10 rounded-lg bg-muted">
-                                            {itemRentals.map(rental => (
-                                                <div
-                                                    key={rental.id}
-                                                    className="absolute top-0 h-full flex items-center justify-center p-1 rounded-md bg-primary/80 text-white"
-                                                    style={getRentalStyle(rental)}
-                                                    title={`${rental.borrower_name} (${format(rental.start_date, 'HH:mm')} - ${format(rental.end_date, 'HH:mm')})`}
-                                                >
-                                                   <span className="text-xs truncate">{rental.borrower_name}</span>
-                                                </div>
-                                            ))}
+                                            {itemRentals.map(rental => {
+                                                const statusColor = rental.status === 'approved'
+                                                    ? 'bg-primary/80'
+                                                    : 'bg-yellow-500/80';
+                                                
+                                                const title = rental.status === 'approved'
+                                                    ? `${rental.borrower_name} (${format(rental.start_date, 'HH:mm')} - ${format(rental.end_date, 'HH:mm')})`
+                                                    : `승인 대기 (${format(rental.start_date, 'HH:mm')} - ${format(rental.end_date, 'HH:mm')})`;
+                                                
+                                                const text = rental.status === 'approved' ? rental.borrower_name : '승인 대기';
+
+                                                return (
+                                                    <div
+                                                        key={rental.id}
+                                                        className={cn(
+                                                            "absolute top-0 h-full flex items-center justify-center p-1 rounded-md text-white",
+                                                            statusColor
+                                                        )}
+                                                        style={getRentalStyle(rental)}
+                                                        title={title}
+                                                    >
+                                                       <span className="text-xs truncate">{text}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </React.Fragment>
                                 );
                             })}
                         </div>
-                         {relevantRentals.length === 0 && (
+                         {equipment.length > 0 && relevantRentals.length === 0 && (
                             <p className="text-center text-muted-foreground py-8">선택한 날짜에 대여 기록이 없습니다.</p>
+                        )}
+                        {equipment.length === 0 && (
+                            <p className="text-center text-muted-foreground py-8">표시할 장비가 없습니다.</p>
                         )}
                     </div>
                     <ScrollBar orientation="horizontal" />
@@ -115,7 +132,7 @@ export default function AvailabilityView({ rentals: rawRentals, equipment }: Ava
     const rentalsByDate = useMemo(() => {
         const grouped: Record<string, number> = {};
         rentals.forEach(rental => {
-            if (rental.status === 'approved') {
+            if (rental.status === 'approved' || rental.status === 'pending') {
                 const interval = eachDayOfInterval({ start: startOfDay(rental.start_date), end: startOfDay(rental.end_date) });
                 interval.forEach(day => {
                     const dateString = format(day, 'yyyy-MM-dd');
