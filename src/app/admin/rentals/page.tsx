@@ -1,6 +1,6 @@
-import { getRentals, getEquipmentById } from "@/lib/data";
+import { getRentals, getEquipment } from "@/lib/data";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal } from "lucide-react";
@@ -22,8 +22,10 @@ const statusText: Record<RentalStatus, string> = {
     returned: "반납 완료",
   };
 
-export default function AdminRentalsPage() {
-  const rentals = getRentals();
+export default async function AdminRentalsPage() {
+  const rentals = await getRentals();
+  const equipmentList = await getEquipment();
+  const equipmentMap = new Map(equipmentList.map(e => [e.id, e]));
 
   return (
     <div className="space-y-8">
@@ -45,7 +47,7 @@ export default function AdminRentalsPage() {
             </TableHeader>
             <TableBody>
               {rentals.map(rental => {
-                const equipment = getEquipmentById(rental.equipment_id);
+                const equipment = equipmentMap.get(rental.equipment_id);
                 return (
                   <TableRow key={rental.id}>
                     <TableCell className="font-medium">{equipment?.name || rental.equipment_id}</TableCell>

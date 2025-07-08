@@ -2,9 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEquipment, getRentals } from "@/lib/data";
 import { HardDrive, CalendarClock, AlertTriangle, CheckCircle2 } from "lucide-react";
 
-export default function AdminDashboard() {
-  const equipment = getEquipment();
-  const rentals = getRentals();
+export default async function AdminDashboard() {
+  const equipment = await getEquipment();
+  const rentals = await getRentals();
 
   const totalEquipment = equipment.reduce((sum, item) => sum + item.total_quantity, 0);
   const pendingRentals = rentals.filter(r => r.status === 'pending').length;

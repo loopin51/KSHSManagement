@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -32,6 +32,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const equipmentSchema = z.object({
   id: z.string().trim().min(1, "ID를 입력해주세요."),
@@ -45,10 +46,22 @@ const equipmentSchema = z.object({
 type EquipmentFormValues = z.infer<typeof equipmentSchema>;
 
 export default function AdminEquipmentsPage() {
-  const [equipmentList, setEquipmentList] = useState(() => getEquipment());
+  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const departments = getDepartments();
   const { toast } = useToast();
+
+  const fetchEquipment = async () => {
+    setIsLoading(true);
+    const data = await getEquipment();
+    setEquipmentList(data);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchEquipment();
+  }, []);
 
   const form = useForm<EquipmentFormValues>({
     resolver: zodResolver(equipmentSchema),
@@ -60,10 +73,11 @@ export default function AdminEquipmentsPage() {
     },
   });
 
-  const { register, handleSubmit, control, formState: { errors }, reset } = form;
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset } = form;
 
-  const onSubmit = (data: EquipmentFormValues) => {
-    if (getEquipmentById(data.id)) {
+  const onSubmit = async (data: EquipmentFormValues) => {
+    const existing = await getEquipmentById(data.id);
+    if (existing) {
       toast({
         variant: "destructive",
         title: "오류",
@@ -72,15 +86,23 @@ export default function AdminEquipmentsPage() {
       return;
     }
 
-    addEquipment(data as Equipment);
-    setEquipmentList([...getEquipment()]);
-    setIsDialogOpen(false);
-    reset();
-    toast({
-      title: "성공",
-      description: `"${data.name}" 장비가 추가되었습니다.`,
-      className: "bg-green-100 text-green-800",
-    });
+    try {
+      await addEquipment(data as Equipment);
+      await fetchEquipment(); // Refetch the list
+      setIsDialogOpen(false);
+      reset();
+      toast({
+        title: "성공",
+        description: `"${data.name}" 장비가 추가되었습니다.`,
+        className: "bg-green-100 text-green-800",
+      });
+    } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "오류",
+            description: "장비 추가 중 오류가 발생했습니다.",
+        });
+    }
   };
 
   return (
@@ -150,7 +172,9 @@ export default function AdminEquipmentsPage() {
               <DialogClose asChild>
                 <Button variant="outline">취소</Button>
               </DialogClose>
-              <Button type="submit" form="add-equipment-form">추가하기</Button>
+              <Button type="submit" form="add-equipment-form" disabled={isSubmitting}>
+                {isSubmitting ? "추가하는 중..." : "추가하기"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -168,7 +192,17 @@ export default function AdminEquipmentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {equipmentList.map(item => (
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                    </TableRow>
+                ))
+              ) : equipmentList.map(item => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.id}</TableCell>
                   <TableCell>{item.name}</TableCell>

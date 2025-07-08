@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const rentalFormSchema = z.object({
   borrower_name: z.string().min(2, { message: '대여자는 2글자 이상이어야 합니다.' }),
@@ -55,8 +56,24 @@ function NewRentalPageContents() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  const itemIds = searchParams.get('items')?.split(',') || [];
-  const selectedEquipment: (Equipment | undefined)[] = itemIds.map(id => getEquipmentById(id));
+  const itemIds = useMemo(() => searchParams.get('items')?.split(',') || [], [searchParams]);
+  const [selectedEquipment, setSelectedEquipment] = useState<(Equipment | undefined)[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEquipment = async () => {
+        if (itemIds.length > 0) {
+            setIsLoading(true);
+            const equipmentPromises = itemIds.map(id => getEquipmentById(id));
+            const equipmentResults = await Promise.all(equipmentPromises);
+            setSelectedEquipment(equipmentResults.filter(Boolean) as Equipment[]);
+            setIsLoading(false);
+        } else {
+            setIsLoading(false);
+        }
+    };
+    fetchEquipment();
+  }, [itemIds]);
 
   const form = useForm<RentalFormValues>({
     resolver: zodResolver(rentalFormSchema),
@@ -72,9 +89,9 @@ function NewRentalPageContents() {
     },
   });
 
-  const { control, handleSubmit, formState: { errors } } = form;
+  const { control, handleSubmit, formState: { errors, isSubmitting } } = form;
 
-  const onSubmit = (data: RentalFormValues) => {
+  const onSubmit = async (data: RentalFormValues) => {
     const { date_range, borrower_name, purpose, startTime, endTime } = data;
     const { from, to } = date_range;
 
@@ -105,7 +122,7 @@ function NewRentalPageContents() {
         return;
     }
 
-    const collisionCheck = checkRentalCollision(itemIds, finalStartDate, finalEndDate);
+    const collisionCheck = await checkRentalCollision(itemIds, finalStartDate, finalEndDate);
 
     if (collisionCheck.collision) {
       toast({
@@ -114,15 +131,15 @@ function NewRentalPageContents() {
         description: collisionCheck.message,
       });
     } else {
-        itemIds.forEach(equipment_id => {
-            createRental({
+        await Promise.all(itemIds.map(equipment_id => {
+            return createRental({
                 equipment_id,
                 borrower_name,
                 purpose,
                 start_date: finalStartDate,
                 end_date: finalEndDate,
             });
-        });
+        }));
 
       toast({
         title: "대여 신청 완료",
@@ -133,7 +150,7 @@ function NewRentalPageContents() {
     }
   };
 
-  if (itemIds.length === 0) {
+  if (!isLoading && itemIds.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -169,12 +186,16 @@ function NewRentalPageContents() {
             <Label>대여 장비 목록</Label>
             <Card>
                 <CardContent className="p-4 space-y-2">
-                {selectedEquipment.map(item => item && (
-                    <div key={item.id} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
-                        <span>{item.name} ({item.id})</span>
-                        <span className="text-muted-foreground">{item.department}</span>
-                    </div>
-                ))}
+                {isLoading ? (
+                    Array.from({length: itemIds.length || 1}).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)
+                ) : (
+                    selectedEquipment.map(item => item && (
+                        <div key={item.id} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/50">
+                            <span>{item.name} ({item.id})</span>
+                            <span className="text-muted-foreground">{item.department}</span>
+                        </div>
+                    ))
+                )}
                 </CardContent>
             </Card>
           </div>
@@ -278,8 +299,8 @@ function NewRentalPageContents() {
 
         </CardContent>
         <CardFooter>
-            <Button type="submit" className="w-full md:w-auto ml-auto">
-              대여 가능 여부 확인 및 신청
+            <Button type="submit" className="w-full md:w-auto ml-auto" disabled={isSubmitting || isLoading}>
+              {isSubmitting ? "신청하는 중..." : "대여 가능 여부 확인 및 신청"}
             </Button>
         </CardFooter>
       </Card>

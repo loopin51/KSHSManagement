@@ -1,5 +1,5 @@
 import AvailabilityView from '@/components/AvailabilityView';
-import { getEquipment, getRentals, getEquipmentById } from '@/lib/data';
+import { getEquipment, getRentals } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +21,10 @@ const statusText: Record<RentalStatus, string> = {
     returned: "반납 완료",
   };
 
-export default function StatusPage() {
-  const rentals = getRentals();
-  const equipment = getEquipment();
+export default async function StatusPage() {
+  const rentals = await getRentals();
+  const equipment = await getEquipment();
+  const equipmentMap = new Map(equipment.map(e => [e.id, e]));
 
   return (
     <div className="space-y-8">
@@ -52,7 +53,7 @@ export default function StatusPage() {
               </TableHeader>
               <TableBody>
                 {rentals.map(rental => {
-                  const equipmentItem = getEquipmentById(rental.equipment_id);
+                  const equipmentItem = equipmentMap.get(rental.equipment_id);
                   return (
                     <TableRow key={rental.id}>
                       <TableCell className="font-medium">{equipmentItem?.name || rental.equipment_id}</TableCell>

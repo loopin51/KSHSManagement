@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Department, Equipment } from '@/lib/types';
-import { getAvailableQuantity } from '@/lib/data';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { FlaskConical, Laptop, Search, TestTube } from 'lucide-react';
 
 interface EquipmentListClientProps {
-  allEquipment: Equipment[];
+  allEquipment: (Equipment & { available_quantity: number })[];
   departments: Department[];
 }
 
@@ -67,8 +66,6 @@ export default function EquipmentListClient({ allEquipment, departments }: Equip
       router.push(`/rentals/new?${query}`);
     }
   };
-  
-  const today = new Date();
 
   return (
     <Card>
@@ -121,7 +118,7 @@ export default function EquipmentListClient({ allEquipment, departments }: Equip
             <TableBody>
               {filteredEquipment.length > 0 ? (
                 filteredEquipment.map(item => {
-                  const availableQuantity = getAvailableQuantity(item.id, today);
+                  const availableQuantity = item.available_quantity;
                   return (
                     <TableRow key={item.id} data-state={selectedItems.has(item.id) ? "selected" : ""}>
                       <TableCell>
@@ -129,6 +126,7 @@ export default function EquipmentListClient({ allEquipment, departments }: Equip
                           checked={selectedItems.has(item.id)}
                           onCheckedChange={checked => handleSelect(item.id, Boolean(checked))}
                           aria-label={`${item.name} 선택`}
+                          disabled={availableQuantity <= 0}
                         />
                       </TableCell>
                       <TableCell className="font-medium">{item.id}</TableCell>
