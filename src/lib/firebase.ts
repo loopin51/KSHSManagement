@@ -25,12 +25,11 @@ if (process.env.NODE_ENV === 'development') {
     try {
         connectFirestoreEmulator(db, 'localhost', 8080);
         console.log("Firestore is connected to the emulator.");
-        seedDatabase(); // Seed the database on initial connection
+        // The database is no longer seeded automatically. You can add data via the admin UI.
     } catch (error) {
         // This can happen with Next.js fast refresh.
         if (error instanceof Error && error.message.includes('firestore/emulator-config-failed')) {
             // This error means the emulator is already running, which is fine.
-            // The database would have been seeded on the first run.
         } else {
             console.error("Error connecting to Firestore Emulator:", error);
         }
