@@ -91,61 +91,70 @@ export default function NewRentalForm() {
   const { control, handleSubmit, formState: { errors, isSubmitting } } = form;
 
   const onSubmit = async (data: RentalFormValues) => {
-    const { date_range, borrower_name, purpose, startTime, endTime } = data;
-    const { from, to } = date_range;
-
-    if (!from || !to) {
-        toast({
-            variant: "destructive",
-            title: "오류",
-            description: "대여 기간을 선택해주세요.",
-          });
-      return;
-    }
-    
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const [endHour, endMinute] = endTime.split(':').map(Number);
-
-    const finalStartDate = new Date(from);
-    finalStartDate.setHours(startHour, startMinute, 0, 0);
-
-    const finalEndDate = new Date(to);
-    finalEndDate.setHours(endHour, endMinute, 0, 0);
-
-    if(finalEndDate <= finalStartDate) {
-        toast({
-            variant: "destructive",
-            title: "오류",
-            description: "종료일시가 시작일시보다 빠르거나 같을 수 없습니다.",
-        });
-        return;
-    }
-
-    const collisionCheck = await checkRentalCollision(itemIds, finalStartDate, finalEndDate);
-
-    if (collisionCheck.collision) {
-      toast({
-        variant: "destructive",
-        title: "대여 충돌 발생",
-        description: collisionCheck.message,
-      });
-    } else {
-        await Promise.all(itemIds.map(equipment_id => {
-            return createRental({
-                equipment_id,
-                borrower_name,
-                purpose,
-                start_date: finalStartDate,
-                end_date: finalEndDate,
+    try {
+      const { date_range, borrower_name, purpose, startTime, endTime } = data;
+      const { from, to } = date_range;
+  
+      if (!from || !to) {
+          toast({
+              variant: "destructive",
+              title: "오류",
+              description: "대여 기간을 선택해주세요.",
             });
-        }));
-
+        return;
+      }
+      
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const [endHour, endMinute] = endTime.split(':').map(Number);
+  
+      const finalStartDate = new Date(from);
+      finalStartDate.setHours(startHour, startMinute, 0, 0);
+  
+      const finalEndDate = new Date(to);
+      finalEndDate.setHours(endHour, endMinute, 0, 0);
+  
+      if(finalEndDate <= finalStartDate) {
+          toast({
+              variant: "destructive",
+              title: "오류",
+              description: "종료일시가 시작일시보다 빠르거나 같을 수 없습니다.",
+          });
+          return;
+      }
+  
+      const collisionCheck = await checkRentalCollision(itemIds, finalStartDate, finalEndDate);
+  
+      if (collisionCheck.collision) {
+        toast({
+          variant: "destructive",
+          title: "대여 불가",
+          description: collisionCheck.message,
+        });
+      } else {
+          await Promise.all(itemIds.map(equipment_id => {
+              return createRental({
+                  equipment_id,
+                  borrower_name,
+                  purpose,
+                  start_date: finalStartDate,
+                  end_date: finalEndDate,
+              });
+          }));
+  
+        toast({
+          title: "대여 신청 완료",
+          description: "대여 신청이 성공적으로 접수되었습니다. 관리자 승인 후 사용 가능합니다.",
+          className: "bg-green-100 text-green-800",
+        });
+        router.push('/');
+      }
+    } catch (error) {
+      console.error("Rental submission failed:", error);
       toast({
-        title: "대여 신청 완료",
-        description: "대여 신청이 성공적으로 접수되었습니다. 관리자 승인 후 사용 가능합니다.",
-        className: "bg-green-100 text-green-800",
+          variant: "destructive",
+          title: "신청 실패",
+          description: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다. 다시 시도해주세요.",
       });
-      router.push('/');
     }
   };
 
