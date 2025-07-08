@@ -4,6 +4,7 @@
 
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { seedDatabase } from './seed';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
@@ -24,11 +25,14 @@ if (process.env.NODE_ENV === 'development') {
     try {
         connectFirestoreEmulator(db, 'localhost', 8080);
         console.log("Firestore is connected to the emulator.");
-        // The database is no longer seeded automatically. You can add data via the admin UI.
+        // The seed function checks if data exists before populating.
+        seedDatabase();
     } catch (error) {
         // This can happen with Next.js fast refresh.
         if (error instanceof Error && error.message.includes('firestore/emulator-config-failed')) {
             // This error means the emulator is already running, which is fine.
+            // We can still try to seed.
+            seedDatabase();
         } else {
             console.error("Error connecting to Firestore Emulator:", error);
         }
