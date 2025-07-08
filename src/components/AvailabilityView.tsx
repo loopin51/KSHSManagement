@@ -16,7 +16,7 @@ interface AvailabilityViewProps {
   equipment: Equipment[];
 }
 
-function AvailabilityCalendar({ rentals }: { rentals: Rental[] }) {
+function AvailabilityCalendar({ rentals, equipment }: { rentals: Rental[], equipment: Equipment[] }) {
     const [month, setMonth] = useState(new Date());
 
     const rentalsByDate = useMemo(() => {
@@ -38,7 +38,7 @@ function AvailabilityCalendar({ rentals }: { rentals: Rental[] }) {
             }
         });
         return grouped;
-    }, [rentals]);
+    }, [rentals, equipment]);
 
     return (
         <Calendar
@@ -174,7 +174,7 @@ export default function AvailabilityView({ rentals, equipment }: AvailabilityVie
           <TabsContent value="calendar" className="mt-4">
             <Card>
                 <CardContent className="p-4">
-                    <AvailabilityCalendar rentals={rentals} />
+                    <AvailabilityCalendar rentals={rentals} equipment={equipment} />
                 </CardContent>
             </Card>
           </TabsContent>
