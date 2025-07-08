@@ -24,9 +24,10 @@ if (process.env.NODE_ENV === 'development') {
     try {
         connectFirestoreEmulator(db, 'localhost', 8080);
         console.log("Firestore is connected to the emulator.");
-    } catch (error) {
+    } catch (error: any) {
         // This can happen with Next.js fast refresh.
-        if (error instanceof Error && error.message.includes('firestore/emulator-config-failed')) {
+        // The error code 'failed-precondition' indicates the emulator is already connected.
+        if (error.code === 'failed-precondition') {
             // This error means the emulator is already running, which is fine.
         } else {
             console.error("Error connecting to Firestore Emulator:", error);
