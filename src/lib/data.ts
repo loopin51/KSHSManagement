@@ -2,7 +2,7 @@ import type { Department, Equipment, Rental } from './types';
 
 const departments: Department[] = ['물리과', '화학과', 'IT과'];
 
-const equipment: Equipment[] = [
+let equipment: Equipment[] = [
   { id: 'IT-LAPTOP-001', name: 'MacBook Pro 16"', department: 'IT과', total_quantity: 10 },
   { id: 'IT-LAPTOP-002', name: 'Dell XPS 15', department: 'IT과', total_quantity: 15 },
   { id: 'IT-MONITOR-001', name: 'LG UltraFine 4K', department: 'IT과', total_quantity: 20 },
@@ -15,7 +15,7 @@ const equipment: Equipment[] = [
   { id: 'IT-PROJECTOR-001', name: '4K 프로젝터', department: 'IT과', total_quantity: 4 },
 ];
 
-const rentals: Rental[] = [
+let rentals: Rental[] = [
     {
         id: 'R001',
         equipment_id: 'IT-LAPTOP-001',
@@ -114,6 +114,10 @@ export function checkRentalCollision(equipmentIds: string[], startDate: Date, en
     }
   
     return { collision: false, message: "대여 가능합니다." };
+}
+
+export function addEquipment(newEquipment: Equipment): void {
+    equipment.unshift(newEquipment);
 }
 
 let nextRentalId = 100;
