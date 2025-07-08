@@ -25,6 +25,11 @@ function DailyTimeline({ selectedDate, rentals, equipment }: { selectedDate: Dat
                isSameDay(rental.end_date, selectedDate);
     }), [rentals, selectedDate]);
 
+    const equipmentWithRentals = useMemo(() => {
+        const equipmentIdsWithRentals = new Set(relevantRentals.map(r => r.equipment_id));
+        return equipment.filter(e => equipmentIdsWithRentals.has(e.id));
+    }, [relevantRentals, equipment]);
+
     const getRentalStyle = (rental: Rental) => {
         const dayStart = startOfDay(selectedDate);
         const dayEnd = endOfDay(selectedDate);
@@ -69,7 +74,7 @@ function DailyTimeline({ selectedDate, rentals, equipment }: { selectedDate: Dat
                                 ))}
                             </div>
 
-                            {equipment.map(item => {
+                            {equipmentWithRentals.map(item => {
                                 const itemRentals = relevantRentals.filter(r => r.equipment_id === item.id);
                                 return (
                                     <React.Fragment key={item.id}>
@@ -105,11 +110,8 @@ function DailyTimeline({ selectedDate, rentals, equipment }: { selectedDate: Dat
                                 );
                             })}
                         </div>
-                         {equipment.length > 0 && relevantRentals.length === 0 && (
+                         {equipmentWithRentals.length === 0 && (
                             <p className="text-center text-muted-foreground py-8">선택한 날짜에 대여 기록이 없습니다.</p>
-                        )}
-                        {equipment.length === 0 && (
-                            <p className="text-center text-muted-foreground py-8">표시할 장비가 없습니다.</p>
                         )}
                     </div>
                     <ScrollBar orientation="horizontal" />
