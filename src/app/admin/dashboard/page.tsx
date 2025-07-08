@@ -33,10 +33,10 @@ export default function AdminDashboard() {
           {process.env.NODE_ENV === 'development' && <Skeleton className="h-10 w-48" />}
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-24 mt-1" /></CardContent></Card>
-          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-24 mt-1" /></CardContent></Card>
-          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-24 mt-1" /></CardContent></Card>
-          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-24 mt-1" /></CardContent></Card>
+          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><div className="text-sm text-muted-foreground"><Skeleton className="h-4 w-24" /></div></CardContent></Card>
+          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><div className="text-sm text-muted-foreground"><Skeleton className="h-4 w-24" /></div></CardContent></Card>
+          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><div className="text-sm text-muted-foreground"><Skeleton className="h-4 w-24" /></div></CardContent></Card>
+          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><div className="text-sm text-muted-foreground"><Skeleton className="h-4 w-24" /></div></CardContent></Card>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
             <Card>
@@ -115,31 +115,31 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{rentals.length}</div>
             <p className="text-xs text-muted-foreground">
-              모든 상태의 대여 기록
+              전체 대여 기록 수
             </p>
           </CardContent>
         </Card>
       </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-            <CardHeader>
-                <CardTitle>최근 대여 요청</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {/* Placeholder for recent rentals list */}
-                <p className="text-sm text-muted-foreground">최근 대여 요청 목록이 여기에 표시됩니다.</p>
-            </CardContent>
+          <CardHeader>
+            <CardTitle>최근 활동</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">최근 대여 및 반납 활동이 여기에 표시됩니다.</p>
+          </CardContent>
         </Card>
         <Card>
-            <CardHeader>
-                <CardTitle>재고 부족 장비</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {/* Placeholder for low stock items */}
-                <p className="text-sm text-muted-foreground">재고가 부족한 장비 목록이 여기에 표시됩니다.</p>
-            </CardContent>
+          <CardHeader>
+            <CardTitle>재고 부족 알림</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">재고가 부족한 장비 목록이 여기에 표시됩니다.</p>
+          </CardContent>
         </Card>
       </div>
+
     </div>
   );
 }
