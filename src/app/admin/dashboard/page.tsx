@@ -44,7 +44,7 @@ export default function AdminDashboard() {
                     <CardTitle><Skeleton className="h-6 w-40" /></CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm text-muted-foreground"><Skeleton className="h-4 w-64" /></p>
+                    <div className="text-sm text-muted-foreground"><Skeleton className="h-4 w-64" /></div>
                 </CardContent>
             </Card>
             <Card>
@@ -52,7 +52,7 @@ export default function AdminDashboard() {
                     <CardTitle><Skeleton className="h-6 w-40" /></CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm text-muted-foreground"><Skeleton className="h-4 w-64" /></p>
+                    <div className="text-sm text-muted-foreground"><Skeleton className="h-4 w-64" /></div>
                 </CardContent>
             </Card>
         </div>
