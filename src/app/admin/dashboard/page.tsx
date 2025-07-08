@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEquipment, getRentals } from "@/lib/data";
 import { HardDrive, CalendarClock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { SeedDatabaseButton } from "./SeedDatabaseButton";
 
 export default async function AdminDashboard() {
   const equipment = await getEquipment();
@@ -12,7 +13,10 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold font-headline">관리자 대시보드</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold font-headline">관리자 대시보드</h1>
+        {process.env.NODE_ENV === 'development' && <SeedDatabaseButton />}
+      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
