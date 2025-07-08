@@ -2,13 +2,10 @@
 
 import { useState, useMemo } from 'react';
 import type { Rental, Equipment } from '@/lib/types';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { eachDayOfInterval, format, isSameDay, parseISO } from 'date-fns';
+import { eachDayOfInterval, format, isSameDay, parseISO, startOfDay, endOfDay, isWithinInterval, getHours, getMinutes } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 interface AvailabilityViewProps {
@@ -16,179 +13,155 @@ interface AvailabilityViewProps {
   equipment: Equipment[];
 }
 
-function AvailabilityCalendar({ rentals, equipment }: { rentals: Rental[], equipment: Equipment[] }) {
-    const [month, setMonth] = useState(new Date());
+function DailyTimeline({ selectedDate, rentals, equipment }: { selectedDate: Date, rentals: Rental[], equipment: Equipment[] }) {
+    const hours = Array.from({ length: 24 }, (_, i) => i); // 0-23
+    
+    const relevantRentals = useMemo(() => rentals.filter(rental => {
+        if (rental.status !== 'approved') return false;
+        const interval = { start: rental.start_date, end: rental.end_date };
+        return isWithinInterval(selectedDate, interval) || 
+               isSameDay(rental.start_date, selectedDate) || 
+               isSameDay(rental.end_date, selectedDate);
+    }), [rentals, selectedDate]);
+
+    const getRentalStyle = (rental: Rental) => {
+        const dayStart = startOfDay(selectedDate);
+        const dayEnd = endOfDay(selectedDate);
+
+        const rentalStart = rental.start_date > dayStart ? rental.start_date : dayStart;
+        const rentalEnd = rental.end_date < dayEnd ? rental.end_date : dayEnd;
+
+        const startHour = getHours(rentalStart);
+        const startMinute = getMinutes(rentalStart);
+        const endHour = getHours(rentalEnd);
+        const endMinute = getMinutes(rentalEnd);
+        
+        const effectiveEndHour = (endHour === 0 && endMinute === 0 && !isSameDay(rentalStart, rentalEnd)) || (endHour === 23 && endMinute === 59) ? 24 : endHour;
+        const effectiveEndMinute = endHour === 0 && endMinute === 0 && !isSameDay(rentalStart, rentalEnd) ? 0 : endMinute;
+
+        const left = (startHour + startMinute / 60) * (100 / 24);
+        const width = Math.max(0, ((effectiveEndHour + effectiveEndMinute / 60) - (startHour + startMinute / 60)) * (100/24));
+
+        return {
+            left: `${left}%`,
+            width: `${width}%`,
+        };
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>{format(selectedDate, 'yyyy-MM-dd')} 시간별 현황</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="w-full">
+                    <div className="relative pt-4 pr-4">
+                        <div className="grid gap-y-6" style={{ gridTemplateColumns: `120px 1fr`}}>
+                            {/* Empty corner */}
+                            <div></div>
+                            {/* Time labels */}
+                            <div className="relative flex h-8 items-end border-b">
+                                {hours.map(hour => (
+                                    <div key={hour} className="relative flex-1 text-center text-xs text-muted-foreground">
+                                        <span className="absolute -bottom-4 -translate-x-1/2">{hour.toString().padStart(2, '0')}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {equipment.map(item => {
+                                const itemRentals = relevantRentals.filter(r => r.equipment_id === item.id);
+                                if (itemRentals.length === 0) return null;
+
+                                return (
+                                    <React.Fragment key={item.id}>
+                                        <div className="text-sm font-medium pr-2 text-right truncate">{item.name}</div>
+                                        <div className="relative h-10 rounded-lg bg-muted">
+                                            {itemRentals.map(rental => (
+                                                <div
+                                                    key={rental.id}
+                                                    className="absolute top-0 h-full flex items-center justify-center p-1 rounded-md bg-primary/80 text-white"
+                                                    style={getRentalStyle(rental)}
+                                                    title={`${rental.borrower_name} (${format(rental.start_date, 'HH:mm')} - ${format(rental.end_date, 'HH:mm')})`}
+                                                >
+                                                   <span className="text-xs truncate">{rental.borrower_name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </React.Fragment>
+                                );
+                            })}
+                        </div>
+                         {relevantRentals.length === 0 && (
+                            <p className="text-center text-muted-foreground py-8">선택한 날짜에 대여 기록이 없습니다.</p>
+                        )}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
+}
+
+export default function AvailabilityView({ rentals: rawRentals, equipment }: AvailabilityViewProps) {
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+    
+    const rentals = useMemo(() => rawRentals.map(r => ({
+        ...r,
+        start_date: typeof r.start_date === 'string' ? parseISO(r.start_date) : r.start_date,
+        end_date: typeof r.end_date === 'string' ? parseISO(r.end_date) : r.end_date,
+    })), [rawRentals]);
+
 
     const rentalsByDate = useMemo(() => {
-        const grouped: Record<string, { equipment_name: string, borrower_name: string }[]> = {};
+        const grouped: Record<string, number> = {};
         rentals.forEach(rental => {
             if (rental.status === 'approved') {
-                const equipmentDetails = equipment.find(e => e.id === rental.equipment_id);
-                const interval = eachDayOfInterval({ 
-                    start: typeof rental.start_date === 'string' ? parseISO(rental.start_date) : rental.start_date,
-                    end: typeof rental.end_date === 'string' ? parseISO(rental.end_date) : rental.end_date
-                });
+                const interval = eachDayOfInterval({ start: startOfDay(rental.start_date), end: startOfDay(rental.end_date) });
                 interval.forEach(day => {
                     const dateString = format(day, 'yyyy-MM-dd');
-                    if (!grouped[dateString]) {
-                        grouped[dateString] = [];
-                    }
-                    grouped[dateString].push({
-                        equipment_name: equipmentDetails?.name || rental.equipment_id,
-                        borrower_name: rental.borrower_name
-                    });
+                    grouped[dateString] = (grouped[dateString] || 0) + 1;
                 });
             }
         });
         return grouped;
-    }, [rentals, equipment]);
+    }, [rentals]);
+
 
     return (
-        <Calendar
-            mode="single"
-            month={month}
-            onMonthChange={setMonth}
-            className="p-0"
-            locale={ko}
-            components={{
-                DayContent: ({ date }) => {
-                    const dateString = format(date, 'yyyy-MM-dd');
-                    const dailyRentals = rentalsByDate[dateString];
-                    return (
-                        <div className="relative h-full w-full">
-                            <span className="relative z-10">{format(date, 'd')}</span>
-                            {dailyRentals && dailyRentals.length > 0 && (
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex space-x-0.5 z-0">
-                                            {dailyRentals.slice(0, 3).map((_, i) => (
-                                                <div key={i} className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                            ))}
-                                        </div>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-60">
-                                        <div className="space-y-2">
-                                            <h4 className="font-medium leading-none">{format(date, 'yyyy-MM-dd')} 대여 현황</h4>
-                                            <div className="text-sm space-y-1">
-                                                {dailyRentals.map((r, i) => (
-                                                    <p key={i}>• {r.equipment_name} ({r.borrower_name})</p>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
-                            )}
-                        </div>
-                    );
-                },
-            }}
-        />
-    );
-}
-
-
-function AvailabilityTimeline({ rentals, equipment }: AvailabilityViewProps) {
-    const today = new Date();
-    const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-    const days = eachDayOfInterval({ start: startDate, end: endDate });
-
-    const getDaysBetween = (start: Date, end: Date) => {
-        return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    }
-    const getDayOffset = (date: Date) => {
-        return Math.round((date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    }
-
-    return (
-        <div className="relative">
-            <ScrollArea className="w-full whitespace-nowrap rounded-md border">
-                <div className="grid" style={{ gridTemplateColumns: `150px repeat(${days.length}, 40px)` }}>
-                    {/* Header: Equipment Names */}
-                    <div className="sticky left-0 bg-background z-20 border-r p-2 font-semibold text-sm">장비</div>
-                    {days.map(day => (
-                        <div key={day.toISOString()} className={`p-2 border-b text-center text-xs ${isSameDay(day, today) ? 'bg-primary/10' : ''}`}>
-                            {format(day, 'd')}
-                        </div>
-                    ))}
-                    
-                    {/* Equipment Rows */}
-                    {equipment.map((item, index) => (
-                        <div key={item.id} className="contents">
-                            <div className="sticky left-0 bg-background z-20 border-r p-2 text-sm truncate" style={{ gridRow: index + 2 }}>
-                                {item.name}
-                            </div>
-                            {/* Empty cells for timeline grid */}
-                            {days.map(day => (
-                                <div key={`${item.id}-${day.toISOString()}`} className={`border-r border-b ${isSameDay(day, today) ? 'bg-primary/10' : ''}`}></div>
-                            ))}
-                        </div>
-                    ))}
-
-                    {/* Rental Bars */}
-                    {rentals.filter(r => r.status === 'approved').map(rental => {
-                        const itemIndex = equipment.findIndex(e => e.id === rental.equipment_id);
-                        if (itemIndex === -1) return null;
-
-                        const parsedStartDate = typeof rental.start_date === 'string' ? parseISO(rental.start_date) : rental.start_date;
-                        const parsedEndDate = typeof rental.end_date === 'string' ? parseISO(rental.end_date) : rental.end_date;
-
-                        const rentalStart = parsedStartDate > startDate ? parsedStartDate : startDate;
-                        const rentalEnd = parsedEndDate < endDate ? parsedEndDate : endDate;
-
-                        const offset = getDayOffset(rentalStart);
-                        const duration = getDaysBetween(rentalStart, rentalEnd);
-
-                        if (offset < 0 || offset >= days.length || duration <= 0) return null;
-
-                        return (
-                            <div
-                                key={rental.id}
-                                className="absolute h-8 bg-primary/70 rounded-md z-10 flex items-center px-2 text-white text-xs truncate"
-                                style={{
-                                    gridRow: itemIndex + 2,
-                                    gridColumnStart: offset + 2,
-                                    gridColumnEnd: `span ${duration}`,
-                                    top: `${(itemIndex + 1) * 3.1}rem`,
-                                    left: `${150 + offset * 40}px`,
-                                    width: `${duration * 40 - 4}px`,
-                                    marginTop: '0.25rem',
-                                    marginBottom: '0.25rem'
-                                }}
-                                title={`${equipment[itemIndex].name} - ${rental.borrower_name}`}
-                            >
-                                {rental.borrower_name}
-                            </div>
-                        )
-                    })}
-                </div>
-                <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-1">
+                <Card>
+                    <CardContent className="p-2 flex justify-center">
+                        <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={setSelectedDate}
+                            className="p-0"
+                            locale={ko}
+                            modifiers={{
+                                hasRentals: (date) => rentalsByDate[format(date, 'yyyy-MM-dd')] > 0,
+                            }}
+                            modifiersClassNames={{
+                                hasRentals: 'has-rentals',
+                            }}
+                        />
+                    </CardContent>
+                </Card>
+                 <style jsx global>{`
+                    .has-rentals {
+                        font-weight: bold;
+                        border: 1px solid hsl(var(--primary));
+                        border-radius: var(--radius);
+                    }
+                    .rdp-day_selected.has-rentals {
+                        background-color: hsl(var(--primary));
+                        color: hsl(var(--primary-foreground));
+                    }
+                 `}</style>
+            </div>
+            <div className="lg:col-span-2">
+                {selectedDate && <DailyTimeline selectedDate={selectedDate} rentals={rentals} equipment={equipment} />}
+            </div>
         </div>
     );
-}
-
-export default function AvailabilityView({ rentals, equipment }: AvailabilityViewProps) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <Tabs defaultValue="calendar">
-          <TabsList>
-            <TabsTrigger value="calendar">캘린더 뷰</TabsTrigger>
-            <TabsTrigger value="timeline">타임라인 뷰</TabsTrigger>
-          </TabsList>
-          <TabsContent value="calendar" className="mt-4">
-            <Card>
-                <CardContent className="p-4">
-                    <AvailabilityCalendar rentals={rentals} equipment={equipment} />
-                </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="timeline" className="mt-4">
-             <AvailabilityTimeline rentals={rentals} equipment={equipment} />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
 }

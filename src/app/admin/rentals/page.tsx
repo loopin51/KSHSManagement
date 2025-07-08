@@ -51,7 +51,7 @@ export default function AdminRentalsPage() {
                     <TableCell className="font-medium">{equipment?.name || rental.equipment_id}</TableCell>
                     <TableCell>{rental.borrower_name}</TableCell>
                     <TableCell>
-                      {format(rental.start_date, 'yyyy-MM-dd')} ~ {format(rental.end_date, 'yyyy-MM-dd')}
+                      {format(rental.start_date, 'yyyy-MM-dd HH:mm')} ~ {format(rental.end_date, 'yyyy-MM-dd HH:mm')}
                     </TableCell>
                     <TableCell>
                       <Badge className={statusColors[rental.status]}>{statusText[rental.status]}</Badge>

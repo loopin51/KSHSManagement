@@ -21,8 +21,8 @@ let rentals: Rental[] = [
         equipment_id: 'IT-LAPTOP-001',
         borrower_name: '홍길동',
         purpose: '캡스톤 디자인 프로젝트',
-        start_date: new Date('2024-08-05'),
-        end_date: new Date('2024-08-10'),
+        start_date: new Date('2024-08-05T09:00:00'),
+        end_date: new Date('2024-08-10T17:00:00'),
         status: 'approved',
       },
       {
@@ -30,8 +30,8 @@ let rentals: Rental[] = [
         equipment_id: 'CHEM-SPEC-001',
         borrower_name: '김철수',
         purpose: '유기화학 실험',
-        start_date: new Date('2024-08-08'),
-        end_date: new Date('2024-08-12'),
+        start_date: new Date('2024-08-08T10:00:00'),
+        end_date: new Date('2024-08-12T13:00:00'),
         status: 'approved',
       },
       {
@@ -39,8 +39,8 @@ let rentals: Rental[] = [
         equipment_id: 'PHYS-OSC-001',
         borrower_name: '이영희',
         purpose: '전자기학 실험',
-        start_date: new Date('2024-08-15'),
-        end_date: new Date('2024-08-20'),
+        start_date: new Date('2024-08-15T13:00:00'),
+        end_date: new Date('2024-08-20T18:00:00'),
         status: 'pending',
       },
       {
@@ -48,8 +48,8 @@ let rentals: Rental[] = [
         equipment_id: 'IT-LAPTOP-001',
         borrower_name: '박지성',
         purpose: 'AI 학회 발표자료 준비',
-        start_date: new Date('2024-08-18'),
-        end_date: new Date('2024-08-22'),
+        start_date: new Date('2024-08-18T09:00:00'),
+        end_date: new Date('2024-08-22T12:00:00'),
         status: 'approved',
       },
       {
@@ -57,8 +57,8 @@ let rentals: Rental[] = [
         equipment_id: 'IT-MONITOR-001',
         borrower_name: '홍길동',
         purpose: '추가 모니터 요청',
-        start_date: new Date('2024-08-05'),
-        end_date: new Date('2024-08-10'),
+        start_date: new Date('2024-08-05T09:00:00'),
+        end_date: new Date('2024-08-10T17:00:00'),
         status: 'approved',
       },
 ];
@@ -74,7 +74,7 @@ export const getRentals = () => rentals;
 
 export const getRentalsByEquipmentId = (equipmentId: string) => rentals.filter(r => r.equipment_id === equipmentId);
 
-export function getAvailableQuantity(equipmentId: string, date: Date): number {
+export function getAvailableQuantity(equipmentId: string, dateTime: Date): number {
     const item = getEquipmentById(equipmentId);
     if (!item) return 0;
   
@@ -82,8 +82,8 @@ export function getAvailableQuantity(equipmentId: string, date: Date): number {
       (rental) =>
         rental.equipment_id === equipmentId &&
         rental.status === 'approved' &&
-        date >= rental.start_date &&
-        date <= rental.end_date
+        dateTime >= rental.start_date &&
+        dateTime < rental.end_date
     );
   
     return item.total_quantity - overlappingRentals.length;
@@ -94,21 +94,27 @@ export function checkRentalCollision(equipmentIds: string[], startDate: Date, en
       const item = getEquipmentById(id);
       if (!item) continue;
   
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const approvedRentalsCount = rentals.filter(
-          (rental) =>
-            rental.equipment_id === id &&
-            rental.status === 'approved' &&
-            d >= rental.start_date &&
-            d <= rental.end_date
-        ).length;
-        
-        if (approvedRentalsCount >= item.total_quantity) {
-          return {
-            collision: true,
-            message: `"${item.name}"은(는) ${d.toLocaleDateString()}에 대여가 불가능합니다.`,
-            conflictingItem: item.name
-          };
+      const checkPoints = [startDate];
+      rentals.forEach(r => {
+        if (r.equipment_id === id && r.status === 'approved' && r.start_date > startDate && r.start_date < endDate) {
+            checkPoints.push(r.start_date);
+        }
+      });
+      
+      for (const point of checkPoints) {
+        const concurrentRentals = rentals.filter(r =>
+            r.equipment_id === id &&
+            r.status === 'approved' &&
+            point >= r.start_date &&
+            point < r.end_date
+          ).length;
+
+        if (concurrentRentals >= item.total_quantity) {
+            return {
+              collision: true,
+              message: `"${item.name}"은(는) ${format(point, 'yyyy-MM-dd HH:mm')}에 대여 가능 수량을 초과합니다.`,
+              conflictingItem: item.name
+            };
         }
       }
     }

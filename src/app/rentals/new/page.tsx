@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addDays, format } from 'date-fns';
+import { addDays, format, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 import { getEquipmentById, checkRentalCollision, createRental } from '@/lib/data';
@@ -36,6 +36,16 @@ const rentalFormSchema = z.object({
     message: '종료일은 시작일보다 빠를 수 없습니다.',
     path: ['to'],
   }),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "유효한 시간을 입력해주세요 (HH:MM)."),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "유효한 시간을 입력해주세요 (HH:MM)."),
+}).refine((data) => {
+    if (data.date_range.from && data.date_range.to && isSameDay(data.date_range.from, data.date_range.to)) {
+        return data.endTime > data.startTime;
+    }
+    return true;
+}, {
+    message: "같은 날짜에 종료하는 경우, 종료 시간은 시작 시간보다 늦어야 합니다.",
+    path: ["endTime"],
 });
 
 type RentalFormValues = z.infer<typeof rentalFormSchema>;
@@ -57,14 +67,17 @@ function NewRentalPageContents() {
         from: new Date(),
         to: addDays(new Date(), 7),
       },
+      startTime: '09:00',
+      endTime: '17:00',
     },
   });
 
   const { control, handleSubmit, formState: { errors } } = form;
 
   const onSubmit = (data: RentalFormValues) => {
-    const { date_range, borrower_name, purpose } = data;
+    const { date_range, borrower_name, purpose, startTime, endTime } = data;
     const { from, to } = date_range;
+
     if (!from || !to) {
         toast({
             variant: "destructive",
@@ -73,7 +86,26 @@ function NewRentalPageContents() {
           });
       return;
     }
-    const collisionCheck = checkRentalCollision(itemIds, from, to);
+    
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+
+    const finalStartDate = new Date(from);
+    finalStartDate.setHours(startHour, startMinute, 0, 0);
+
+    const finalEndDate = new Date(to);
+    finalEndDate.setHours(endHour, endMinute, 0, 0);
+
+    if(finalEndDate <= finalStartDate) {
+        toast({
+            variant: "destructive",
+            title: "오류",
+            description: "종료일시가 시작일시보다 빠르거나 같을 수 없습니다.",
+        });
+        return;
+    }
+
+    const collisionCheck = checkRentalCollision(itemIds, finalStartDate, finalEndDate);
 
     if (collisionCheck.collision) {
       toast({
@@ -87,8 +119,8 @@ function NewRentalPageContents() {
                 equipment_id,
                 borrower_name,
                 purpose,
-                start_date: from,
-                end_date: to,
+                start_date: finalStartDate,
+                end_date: finalEndDate,
             });
         });
 
@@ -159,51 +191,71 @@ function NewRentalPageContents() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="date_range">대여 기간</Label>
-              <Controller
-                name="date_range"
-                control={control}
-                render={({ field }) => (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="date_range"
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !field.value.from && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value?.from ? (
-                          field.value.to ? (
-                            <>
-                              {format(field.value.from, "yyyy-MM-dd")} - {format(field.value.to, "yyyy-MM-dd")}
-                            </>
-                          ) : (
-                            format(field.value.from, "yyyy-MM-dd")
-                          )
-                        ) : (
-                          <span>기간 선택</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        locale={ko}
-                        mode="range"
-                        defaultMonth={field.value.from}
-                        selected={{ from: field.value.from, to: field.value.to }}
-                        onSelect={(range) => field.onChange(range || { from: undefined, to: undefined })}
-                        numberOfMonths={2}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
-              />
-              {errors.date_range?.from && <p className="text-sm text-destructive">{errors.date_range.from.message}</p>}
-              {errors.date_range?.to && <p className="text-sm text-destructive">{errors.date_range.to.message}</p>}
+                <Label>대여 기간</Label>
+                <Controller
+                    name="date_range"
+                    control={control}
+                    render={({ field }) => (
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            id="date_range"
+                            variant={"outline"}
+                            className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !field.value.from && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value?.from ? (
+                            field.value.to ? (
+                                <>
+                                {format(field.value.from, "yyyy-MM-dd")} - {format(field.value.to, "yyyy-MM-dd")}
+                                </>
+                            ) : (
+                                format(field.value.from, "yyyy-MM-dd")
+                            )
+                            ) : (
+                            <span>기간 선택</span>
+                            )}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            locale={ko}
+                            mode="range"
+                            defaultMonth={field.value.from}
+                            selected={{ from: field.value.from, to: field.value.to }}
+                            onSelect={(range) => field.onChange(range || { from: undefined, to: undefined })}
+                            numberOfMonths={2}
+                        />
+                        </PopoverContent>
+                    </Popover>
+                    )}
+                />
+                {errors.date_range?.from && <p className="text-sm text-destructive">{errors.date_range.from.message}</p>}
+                {errors.date_range?.to && <p className="text-sm text-destructive">{errors.date_range.to.message}</p>}
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                  <Label htmlFor="startTime">시작 시간</Label>
+                  <Controller
+                      name="startTime"
+                      control={control}
+                      render={({ field }) => <Input id="startTime" type="time" {...field} />}
+                  />
+                  {errors.startTime && <p className="text-sm text-destructive">{errors.startTime.message}</p>}
+              </div>
+              <div className="space-y-2">
+                  <Label htmlFor="endTime">종료 시간</Label>
+                  <Controller
+                      name="endTime"
+                      control={control}
+                      render={({ field }) => <Input id="endTime" type="time" {...field} />}
+                  />
+                  {errors.endTime && <p className="text-sm text-destructive">{errors.endTime.message}</p>}
+              </div>
           </div>
           
           <div className="space-y-2">
