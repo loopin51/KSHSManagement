@@ -1,11 +1,64 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEquipment, getRentals } from "@/lib/data";
 import { HardDrive, CalendarClock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { SeedDatabaseButton } from "./SeedDatabaseButton";
+import { useEffect, useState } from "react";
+import type { Equipment, Rental } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default async function AdminDashboard() {
-  const equipment = await getEquipment();
-  const rentals = await getRentals();
+export default function AdminDashboard() {
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [rentals, setRentals] = useState<Rental[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      const eqData = await getEquipment();
+      const renData = await getRentals();
+      setEquipment(eqData);
+      setRentals(renData);
+      setIsLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-9 w-64" />
+          {process.env.NODE_ENV === 'development' && <Skeleton className="h-10 w-48" />}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-24 mt-1" /></CardContent></Card>
+          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-24 mt-1" /></CardContent></Card>
+          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-24 mt-1" /></CardContent></Card>
+          <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-4" /></CardHeader><CardContent><Skeleton className="h-7 w-12" /><Skeleton className="h-3 w-24 mt-1" /></CardContent></Card>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle><Skeleton className="h-6 w-40" /></CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground"><Skeleton className="h-4 w-64" /></p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle><Skeleton className="h-6 w-40" /></CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground"><Skeleton className="h-4 w-64" /></p>
+                </CardContent>
+            </Card>
+        </div>
+      </div>
+    );
+  }
 
   const totalEquipment = equipment.reduce((sum, item) => sum + item.total_quantity, 0);
   const pendingRentals = rentals.filter(r => r.status === 'pending').length;

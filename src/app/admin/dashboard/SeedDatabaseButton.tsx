@@ -32,7 +32,7 @@ export function SeedDatabaseButton() {
   return (
     <Button onClick={handleClick} disabled={isSeeding} variant="outline">
       <Rocket className="mr-2 h-4 w-4" />
-      {isSeeding ? 'Seeding...' : 'Seed Local Database'}
+      {isSeeding ? 'Resetting...' : 'Reset & Seed Database'}
     </Button>
   );
 }

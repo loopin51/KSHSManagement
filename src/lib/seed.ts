@@ -5,6 +5,7 @@ import {
   doc,
   addDoc,
   Timestamp,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Equipment, Rental } from './types';
@@ -58,33 +59,45 @@ const getDummyRentals = (): Omit<Rental, 'id'>[] => {
   ];
 };
 
+async function deleteCollection(collectionName: string) {
+    const collectionRef = collection(db, collectionName);
+    const snapshot = await getDocs(collectionRef);
+    if (snapshot.empty) {
+        return;
+    }
+    const deletePromises = snapshot.docs.map(docSnapshot => deleteDoc(docSnapshot.ref));
+    await Promise.all(deletePromises);
+    console.log(`All documents in collection '${collectionName}' have been deleted.`);
+}
+
 export const seedDatabase = async () => {
   try {
-    const equipmentCol = collection(db, 'equipment');
-    const equipmentSnapshot = await getDocs(equipmentCol);
-    if (equipmentSnapshot.empty) {
-      console.log('Seeding equipment...');
-      const promises = dummyEquipment.map(eq => setDoc(doc(db, 'equipment', eq.id), eq.data));
-      await Promise.all(promises);
-      console.log(`${dummyEquipment.length} equipment items seeded.`);
-    }
+    console.log('Resetting and seeding database...');
+    
+    // Delete existing data
+    await deleteCollection('equipment');
+    await deleteCollection('rentals');
 
-    const rentalsCol = collection(db, 'rentals');
-    const rentalsSnapshot = await getDocs(rentalsCol);
-    if (rentalsSnapshot.empty) {
-      console.log('Seeding rentals...');
-      const dummyRentals = getDummyRentals();
-      const promises = dummyRentals.map(rental =>
-        addDoc(rentalsCol, {
-          ...rental,
-          start_date: Timestamp.fromDate(rental.start_date),
-          end_date: Timestamp.fromDate(rental.end_date),
-        })
-      );
-      await Promise.all(promises);
-      console.log(`${dummyRentals.length} rental records seeded.`);
-    }
+    // Seed new data
+    console.log('Seeding equipment...');
+    const equipmentPromises = dummyEquipment.map(eq => setDoc(doc(db, 'equipment', eq.id), eq.data));
+    await Promise.all(equipmentPromises);
+    console.log(`${dummyEquipment.length} equipment items seeded.`);
+
+    console.log('Seeding rentals...');
+    const dummyRentals = getDummyRentals();
+    const rentalPromises = dummyRentals.map(rental =>
+      addDoc(collection(db, 'rentals'), {
+        ...rental,
+        start_date: Timestamp.fromDate(rental.start_date),
+        end_date: Timestamp.fromDate(rental.end_date),
+      })
+    );
+    await Promise.all(rentalPromises);
+    console.log(`${dummyRentals.length} rental records seeded.`);
+
   } catch (error) {
     console.error('Error seeding database:', error);
+    throw error;
   }
 };

@@ -13,10 +13,10 @@ export async function handleSeedDatabase() {
       revalidatePath('/admin/rentals');
       revalidatePath('/');
       revalidatePath('/status');
-      return { success: true, message: 'Database seeded successfully!' };
+      return { success: true, message: 'Database has been reset and seeded!' };
     } catch (error) {
       console.error('Error seeding database from action:', error);
-      return { success: false, message: 'Failed to seed database.' };
+      return { success: false, message: 'Failed to reset and seed database.' };
     }
   } else {
     return { success: false, message: 'Seeding is only allowed in development.' };
